@@ -18,36 +18,21 @@ class Controller{
 
             //入力を配列に解析
             let parsedCLIArray = CCTools.commandLineParser(CLITextInput.value);
-            // console.log(parsedCLIArray);
-            let resultMessage = "";
 
-            if(parsedCLIArray[1] === "showDenominations"){
-                resultMessage = CCTools.showDenominations(parsedCLIArray[2]);
+            let result = CCTools.parsedArrayValidator(parsedCLIArray);
 
-            }else if(parsedCLIArray[1] === "showAvailableLocales"){
-                resultMessage = CCTools.showAvailableLocales();
+            if(result["isValid"]){
+                if(parsedCLIArray[1] === "showDenominations"){
+                    result["message"] = CCTools.showDenominations(parsedCLIArray[2]);
 
-            }else if(parsedCLIArray[1] === "convert"){
-                resultMessage = CCTools.convert(parsedCLIArray[2], Number(parsedCLIArray[3]), parsedCLIArray[4]);
+                }else if(parsedCLIArray[1] === "showAvailableLocales"){
+                    result["message"] = CCTools.showAvailableLocales();
+
+                }else if(parsedCLIArray[1] === "convert"){
+                    result["message"] = CCTools.convert(parsedCLIArray[2], Number(parsedCLIArray[3]), parsedCLIArray[4]);
+                }
             }
 
-
-
-
-
-            // 入力の検証を行い、 {'isValid': <Boolean>, 'errorMessage': <String>} の形をした連想配列を作成します。
-            // let validatorResponse = CCTools.parsedArrayValidator(parsedCLIArray);
-            // if(validatorResponse['isValid'] == false) Controller.appendResultParagraph(CLIOutputDiv, false, validatorResponse['errorMessage']);
-
-            // else Controller.appendResultParagraph(CLIOutputDiv, true, CCTools.evaluatedResultsStringFromParsedCLIArray(parsedCLIArray));
-
-            //結果を出力
-            let result = {
-                "isValid": true,
-                "message": resultMessage
-            }
-
-            // View.appendResultParagraph(config.CLIOutputDiv, true, "Hello");
             View.appendResultParagraph(config.CLIOutputDiv, result["isValid"], result["message"]);
 
             //inputをリセット
@@ -57,7 +42,6 @@ class Controller{
             config.CLIOutputDiv.scrollTop = config.CLIOutputDiv.scrollHeight;
         }
     }
-
 }
 
 
@@ -95,7 +79,6 @@ class View{
 }
 
 
-
 class CCTools{
     static exchangeRates = {
         "Japan": {
@@ -119,46 +102,115 @@ class CCTools{
         },
     }
 
+    static supportCommand = ["convert", "showAvailableLocales", "showDenominations"]
+
     static commandLineParser(CLIInputString){
         //入力したコマンドを" "で分割し配列にする処理
         let parsedStringInputArray = CLIInputString.trim().split(" ");
-        // console.log(parsedStringInputArray);
         return parsedStringInputArray;
     }
 
+    static parsedArrayValidator(parsedStringInputArray){
+        // すべてのコマンドに適用されるルールに照らし合わせて入力をチェックする
+        //universal validator
+        let validatorResponse = CCTools.universalValidator(parsedStringInputArray);
+        if(!validatorResponse["isValid"]) return validatorResponse;
 
-    // static parsedArrayValidator(parsedStringInputArray){
-    //     // すべてのコマンドに適用されるルールに照らし合わせて入力をチェックする
-    //     let validatorResponse = CCTools.universalValidator(parsedStringInputArray);
-    //     if (!validatorResponse['isValid']) return validatorResponse;
+        //command args validator
+        let commandArgsArray = parsedStringInputArray.slice(1);
+        validatorResponse = CCTools.commandArgumentsValidator(commandArgsArray);
+        if(!validatorResponse["isValid"]) return validatorResponse;
 
-    //     // 入力が最初のvalidatorを通過した場合、どのコマンドが与えられたかに基づいて、より具体的な入力の検証を行います。
-    //     validatorResponse = CCTools.commandArgumentsValidator(parsedStringInputArray.slice(1,3));
-    //     if (!validatorResponse['isValid']) return validatorResponse;
+        return validatorResponse;
+    }
 
-    //     return {'isValid': true, 'errorMessage':''}
-    // }
+    static universalValidator(parsedStringInputArray){
+        let universalValidatorResponse = {'isValid': true, 'message': ''};
 
+        if(parsedStringInputArray[0] !== "CCTools"){
+            //１番目のキーワードが "CCTools"であること
+            universalValidatorResponse["isValid"] = false;
+            universalValidatorResponse["message"] = "only CCTools package supported by this app. input must start with 'CCTools'";
 
-    // static universalValidator(parsedStringInputArray){
+        }else if(!CCTools.supportCommand.includes(parsedStringInputArray[1])){
+            //2番目のワードがsupport commandに含まれていること
+            universalValidatorResponse["isValid"] = false;
+            universalValidatorResponse["message"] = "Not supported this command by this app. input must choice [convert], [showAvailableLocales], [showDenominations]";
+        }
 
-    //     return {'isValid': true, 'errorMessage': ''}
-    // }
+        return universalValidatorResponse;
+    }
 
-    // static commandArgumentsValidator(commandArgsArray){
+    static commandArgumentsValidator(commandArgsArray){
+        let commandValidatorResponse = {'isValid': true, 'message': ''};
 
-    //     let argsArray = commandArgsArray[1].split(",").map(stringArg=>Number(stringArg))
+        if(commandArgsArray[0] === "showAvailableLocales"){
+            //commandがshowAvailableLocalesの時は引数はなし
+            if(commandArgsArray.length !== 1){
+                commandValidatorResponse["isValid"] = false;
+                commandValidatorResponse["message"] = `command :${commandArgsArray[0]} is NOT need Argments`;
+            }
+        }else if(commandArgsArray[0] === "showDenominations"){
+            //commandがshowDenominationsの時
+            if(!Object.keys(CCTools.exchangeRates).includes(commandArgsArray[1])){
+                commandValidatorResponse["isValid"] = false;
+                commandValidatorResponse["message"] = `command :${commandArgsArray[0]} NOT supported Locale. you should check Locale list`;
+            }
+        }else if(commandArgsArray[0] === "convert"){
+            //convertの時
+            let convertArgs = commandArgsArray.slice(1);
+            let convertValidatorResponse = CCTools.convertValidator(convertArgs);
 
-    //     // 与えられたコマンドが単一の引数を必要とする場合、コマンドと引数をsingle argument validatorに渡します。
-    //     if (singleArgumentCommands.indexOf(commandArgsArray[0]) != -1){
-    //         return CCTools.singleArgValidator(commandArgsArray[0], argsArray);
-    //     }
+            if(!convertValidatorResponse["isValid"]){
+                commandValidatorResponse["isValid"] = false;
+                commandValidatorResponse["message"] = convertValidatorResponse["message"];
+            }
+        }
 
-    //     // 与えられたコマンドが2つの引数を必要とする場合、コマンドと引数をdouble argument validatorに渡します。
-    //     if (doubleArgumentCommands.indexOf(commandArgsArray[0]) != -1){
-    //         return CCTools.doubleArgValidator(commandArgsArray[0], argsArray);
-    //     }
-    // }
+        return commandValidatorResponse;
+    }
+    static convertValidator(convertArgs){
+        //3語であること
+        //amountは数字であること
+        //sourceの通貨とdestinationの通貨はexchangeに含まれていること
+        let sourceDenomination = convertArgs[0];
+        let destinationDenomination = convertArgs[2];
+        let sourceAmount = Number(convertArgs[1]);
+        let supportDenominations = CCTools.getSupportDenominations();
+
+        let response = {
+            "isValid": true,
+            "message": `command :${convertArgs[0]} or ${convertArgs[2]} NOT supported Denominations. you should check Locale list`
+        }
+
+        if(convertArgs.length !== 3){
+            response["isValid"] = false;
+            response["message"] = "In case of convert Denominations, input must contain exactly 3 elements.[sourceDenomination] [sourceAmount] [destinationDenomination]"
+
+        }else if(typeof(sourceAmount) !== "number" || isNaN(sourceAmount)){
+            response["isValid"] = false;
+            response["message"] = "source Amount is not number. You should input number."
+
+        }else if(!supportDenominations.includes(sourceDenomination) || !supportDenominations.includes(destinationDenomination)){
+            response["isValid"] = false;
+            response["message"] = "NOT exist Denomination."
+        }
+
+        return response;
+    }
+    static getSupportDenominations(){
+        let denominations = [];
+        let locales = Object.keys(CCTools.exchangeRates);
+
+        //要リファクタリング
+        for(let locale of locales){
+            for(let denomination of Object.keys(CCTools.exchangeRates[locale])){
+                denominations.push(denomination);
+            }
+        }
+
+        return denominations;
+    }
 
     static resultListMessage(keys){
         let resultMessage = "";
@@ -187,9 +239,9 @@ class CCTools{
         let sourceRate = 0;
         let destinationRate = 0;
 
-        let country = Object.keys(CCTools.exchangeRates);
+        let locales = Object.keys(CCTools.exchangeRates);
 
-        for(let key of country){
+        for(let key of locales){
             let denominations = Object.keys(CCTools.exchangeRates[key]); //通過単位を配列で取得
 
             denominations.find(denomination => {
@@ -210,8 +262,3 @@ class CCTools{
 }
 
 Controller.initialize();
-// console.log(CCTools.exchangeRates);
-// console.log(CCTools.showAvailableLocales());
-// console.log(CCTools.showDenominations("USA"));
-// console.log(CCTools.convert("Dollar", 5, "Yen"));
-// console.log(CCTools.convert("Euro", 100, "Dollar"));
