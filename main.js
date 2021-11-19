@@ -1,18 +1,5 @@
 'use strict'
 
-
-/*
-DESIGN CHOICES:
-    - 入力文字列を空白で分割して文字列の配列に変換します。
-    - この文字列の入力配列には、3つの要素 パッケージ名 コマンド 引数が含まれる必要があります。
-    - parsedStringInputArrayが有効な場合は、専用ハンドラに渡して適切な組み込みJSを実行し、文字列のレスポンスを生成します。
-    - 入力の検証を2つのステップに分けます: すべてのコマンドを対象とした検証と、特定のコマンドを対象とした入力の検証です。
-    - 入力が有効でない場合は、エラーメッセージを生成して、ユーザーが別の方法でどうすれば良いかを伝えます。
-    - ハンドラから情報を受け取り、CLIOutputDivにDOMparagraphを追加する、専用のビュー関数で生成されるレスポンス
-*/
-
-
-
 const config = {
     'CLITextInput': document.getElementById("CLITextInput"),
     'CLIOutputDiv': document.getElementById("CLIOutputDiv"),
@@ -26,20 +13,45 @@ class Controller{
     }
     static submitSearch(event){
         if (event.key =="Enter"){
-            // let parsedCLIArray = CCTools.commandLineParser(CLITextInput.value);
+            //入力コマンドを画面に表示
             View.appendEchoParagraph(config.CLIOutputDiv);
 
-            config.CLITextInput.value = '';
+            //入力を配列に解析
+            let parsedCLIArray = CCTools.commandLineParser(CLITextInput.value);
+            // console.log(parsedCLIArray);
+            let resultMessage = "";
 
-            //結果を出力
-            View.appendResultParagraph(config.CLIOutputDiv, true, CCTools.showDenominations("USA"));
-            View.appendResultParagraph(config.CLIOutputDiv, true, CCTools.showAvailableLocales());
+            if(parsedCLIArray[1] === "showDenominations"){
+                resultMessage = CCTools.showDenominations(parsedCLIArray[2]);
+
+            }else if(parsedCLIArray[1] === "showAvailableLocales"){
+                resultMessage = CCTools.showAvailableLocales();
+
+            }else if(parsedCLIArray[1] === "convert"){
+                resultMessage = CCTools.convert(parsedCLIArray[2], Number(parsedCLIArray[3]), parsedCLIArray[4]);
+            }
+
+
+
+
 
             // 入力の検証を行い、 {'isValid': <Boolean>, 'errorMessage': <String>} の形をした連想配列を作成します。
             // let validatorResponse = CCTools.parsedArrayValidator(parsedCLIArray);
             // if(validatorResponse['isValid'] == false) Controller.appendResultParagraph(CLIOutputDiv, false, validatorResponse['errorMessage']);
 
             // else Controller.appendResultParagraph(CLIOutputDiv, true, CCTools.evaluatedResultsStringFromParsedCLIArray(parsedCLIArray));
+
+            //結果を出力
+            let result = {
+                "isValid": true,
+                "message": resultMessage
+            }
+
+            // View.appendResultParagraph(config.CLIOutputDiv, true, "Hello");
+            View.appendResultParagraph(config.CLIOutputDiv, result["isValid"], result["message"]);
+
+            //inputをリセット
+            config.CLITextInput.value = '';
 
             // 出力divを常に下方向にスクロールします。
             config.CLIOutputDiv.scrollTop = config.CLIOutputDiv.scrollHeight;
@@ -84,8 +96,6 @@ class View{
 
 
 
-
-
 class CCTools{
     static exchangeRates = {
         "Japan": {
@@ -109,12 +119,12 @@ class CCTools{
         },
     }
 
-    // static commandLineParser(CLIInputString){
-    //     //入力したコマンドを" "で分割し配列にする処理
-    //     let parsedStringInputArray = CLIInputString.trim().split(" ");
-    //     console.log(parsedStringInputArray);
-    //     return parsedStringInputArray;
-    // }
+    static commandLineParser(CLIInputString){
+        //入力したコマンドを" "で分割し配列にする処理
+        let parsedStringInputArray = CLIInputString.trim().split(" ");
+        // console.log(parsedStringInputArray);
+        return parsedStringInputArray;
+    }
 
 
     // static parsedArrayValidator(parsedStringInputArray){
@@ -150,39 +160,58 @@ class CCTools{
     //     }
     // }
 
-    static showAvailableLocales(){
-        //引数は受け取らず、変換するための利用可能なロケールのリストを表示します。
+    static resultListMessage(keys){
         let resultMessage = "";
-        let keys = Object.keys(CCTools.exchangeRates);
 
         for(let key of keys){
             resultMessage += key + ", ";
         }
 
         return resultMessage;
+    }
+
+    static showAvailableLocales(){
+        //引数は受け取らず、変換するための利用可能なロケールのリストを表示します。
+        return CCTools.resultListMessage(Object.keys(CCTools.exchangeRates));
     }
 
     static showDenominations(locale){
         //引数：利用可能なlocale
         //そのロケールでサポートされているデノミテーション（通貨の単位）のリストを表示します。
-        let resultMessage = "";
-        let keys = Object.keys(CCTools.exchangeRates[locale]);
-
-        for(let key of keys){
-            resultMessage += key + ", ";
-        }
-
-        return resultMessage;
+        return CCTools.resultListMessage(Object.keys(CCTools.exchangeRates[locale]));
     }
 
     static convert(sourceDenomination, sourceAmount, destinationDenomination){
         //引数:変換前の通貨の単位、通貨量、変換先の通貨の単位
         //通貨を変換し、入力と出力の値、通貨単位を表示します。sourceAmountは数値に変換される必要があります。
+        let sourceRate = 0;
+        let destinationRate = 0;
+
+        let country = Object.keys(CCTools.exchangeRates);
+
+        for(let key of country){
+            let denominations = Object.keys(CCTools.exchangeRates[key]); //通過単位を配列で取得
+
+            denominations.find(denomination => {
+                if(denomination === sourceDenomination){
+                    //変換前のレート
+                    sourceRate = CCTools.exchangeRates[key][denomination];
+                }
+                else if(denomination === destinationDenomination){
+                    //変換先のレート
+                    destinationRate = CCTools.exchangeRates[key][denomination];
+                }
+            })
+        }
+
+        return Math.floor(sourceAmount * (sourceRate / destinationRate));
     }
 
 }
 
 Controller.initialize();
-console.log(CCTools.exchangeRates);
-console.log(CCTools.showAvailableLocales());
-console.log(CCTools.showDenominations("USA"));
+// console.log(CCTools.exchangeRates);
+// console.log(CCTools.showAvailableLocales());
+// console.log(CCTools.showDenominations("USA"));
+// console.log(CCTools.convert("Dollar", 5, "Yen"));
+// console.log(CCTools.convert("Euro", 100, "Dollar"));
