@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <!-- Required meta tags -->
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+        <!-- Bootstrap CSS -->
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+
+        <title>Command Line Interface Simulation</title>
+
+        <style>
+            .vh-60 {
+                height: 60vh;
+            }
+
+            h1,h2,h3,h4,h5,h6,p {
+                margin: 0;
+                color:white;
+            }
+
+            .bg-header {
+                background: #2A69AE;
+            }
+
+            .bg-result {
+                background: #32363D;
+            }
+            #CLIOutputDiv
+            {
+                overflow: scroll;
+            }
+
+        </style>
+
+    </head>
+    <body>
+        <div class="bg-success vh-100 d-flex flex-column justify-content-center">
+            <div class="container col-8 px-0 bg-result">
+                <div class="text-center bg-header py-2">
+                    <h1>CurrencyConvert [CCTools]</h1>
+                    <h6>入力フォーマット: <br> "CCTools convert [sourceDenomination] [sourceAmount] [destinationLocale]"</h6>
+                    <h6>"showDenominations [locale]"</h6>
+                    <h6>"showAvailableLocales"</h6>
+                </div>
+
+                <div id="CLIOutputDiv" class="container vh-60 bg-dark p-3 text-white">
+                </div>
+
+
+                <div class="container input-group py-2">
+                    <input type="text" id ="CLITextInput" class="form-control" placeholder="type any command" aria-label="Username" aria-describedby="addon-wrapping">
+                </div>
+            </div>
+        </div>
+        <script src="./main.js"></script>
+    </body>
+</html>
