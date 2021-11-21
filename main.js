@@ -5,6 +5,98 @@ const config = {
     'CLIOutputDiv': document.getElementById("CLIOutputDiv"),
 }
 
+class CommandNode{
+    constructor(command){
+        this.command = command;
+        this.prev = null;
+        this.next = null;
+    }
+}
+
+class CommandHistory{
+    constructor(){
+        this.head = new CommandNode(null);
+        this.tail = this.head;
+        this.current = this.tail;
+    }
+    preview(){
+        if(this.current === this.head){
+            return this.current.command;
+
+        }else{
+            this.current = this.current.prev;
+
+            return this.current.next.command;
+        }
+
+    }
+    next(){
+        if(this.current === this.tail){
+            return this.current.command;
+        }else{
+            this.current = this.current.next;
+            return this.current.prev.command;
+        }
+    }
+    add(command){
+        if(this.head.command === null){
+            this.head = new CommandNode(command);
+            this.tail = this.head;
+        }else if(this.head.next === null){
+            this.head.next = new CommandNode(command);
+            this.tail = this.head.next;
+            this.tail.prev = this.head;
+        }else{
+            this.tail.next = new CommandNode(command);
+            this.tail.next.prev = this.tail;
+            this.tail = this.tail.next;
+        }
+
+        //currentをリセット
+        this.reset();
+
+        return this.tail;
+    }
+    reset(){
+        this.current = this.tail;
+    }
+    print(){
+        let iterator = this.head;
+        if(iterator.command === null){
+            return;
+        }
+
+        let history = "";
+
+        while(iterator !== null){
+            history += iterator.command + " -> ";
+            iterator = iterator.next;
+        }
+
+        console.log("command history is ..." + history);
+        return history;
+    }
+    printReverse(){
+        console.log("コマンド履歴は...");
+        let iterator = this.tail;
+        if(iterator.command === null){
+            console.log("コマンド履歴はありません");
+            return;
+        }
+
+        let history = "";
+
+        while(iterator !== null){
+            history += iterator.command + " -> ";
+            iterator = iterator.prev;
+        }
+
+        console.log(history);
+        return history;
+    }
+
+}
+
 
 class Controller{
     //modelとviewをつなぐ機能を記述
@@ -12,6 +104,7 @@ class Controller{
         config.CLITextInput.addEventListener("keyup", (event)=>Controller.submitSearch(event));
     }
     static submitSearch(event){
+        // alert(event.key);
         if (event.key =="Enter"){
             //入力コマンドを画面に表示
             View.appendEchoParagraph(config.CLIOutputDiv);
@@ -35,11 +128,23 @@ class Controller{
 
             View.appendResultParagraph(config.CLIOutputDiv, result["isValid"], result["message"]);
 
+            //コマンドを履歴に追加
+            history.add(config.CLITextInput.value);
             //inputをリセット
             config.CLITextInput.value = '';
 
             // 出力divを常に下方向にスクロールします。
             config.CLIOutputDiv.scrollTop = config.CLIOutputDiv.scrollHeight;
+            history.print();
+
+        }else if(event.key === "ArrowUp"){
+            if(history.current !== null){
+                config.CLITextInput.value = history.preview();
+            }
+        }else if(event.key === "ArrowDown"){
+            if(history.current !== null){
+                config.CLITextInput.value = history.next()
+            }
         }
     }
 }
@@ -223,13 +328,13 @@ class CCTools{
     }
 
     static showAvailableLocales(){
-        //引数は受け取らず、変換するための利用可能なロケールのリストを表示します。
+        //引数は受け取らず、変換するための利用可能なロケールのリストを表示。
         return CCTools.resultListMessage(Object.keys(CCTools.exchangeRates));
     }
 
     static showDenominations(locale){
         //引数：利用可能なlocale
-        //そのロケールでサポートされているデノミテーション（通貨の単位）のリストを表示します。
+        //そのロケールでサポートされているデノミテーション（通貨の単位）のリスト。
         return CCTools.resultListMessage(Object.keys(CCTools.exchangeRates[locale]));
     }
 
@@ -261,4 +366,5 @@ class CCTools{
 
 }
 
+const history = new CommandHistory();
 Controller.initialize();
