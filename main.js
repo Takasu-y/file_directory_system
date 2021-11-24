@@ -256,6 +256,7 @@ class DirectoryNode{
         this.type = type;
         this.name = name;
         this.created = new Date();
+        this.updated = this.created;
         this.parent = null;
         this.next = null;
     }
@@ -273,6 +274,10 @@ class DirectoryNode{
     }
     getCreatedAt(){
         return this.created;
+    }
+    setUpdatedAt(){
+        this.updated = new Date();
+        return;
     }
     setParent(currentDirectory){
         //current directoryをparentにsetする
@@ -315,14 +320,14 @@ class FileDirectorySystem{
     supportCommand = ["touch", "mkdir", "ls", "cd", "pwd", "print", "setContent", "rm"];
     fileType = ["directory", "file"];
 
-    touch(type, name){
-        // 指定した名前でfile or dirを作成する。
-        if(type === "directory"){
-            this.currentDirectory.singlyLinkedList.add(new Directory(name));
-        }else{
-            this.currentDirectory.singlyLinkedList.add(new FileNode(name));
-        }
-        return;
+    touch(name){
+        // 指定した名前でfileを作成する。
+        // file or directoryに同じ名前がある場合はnodeの日時を更新する
+        let searchName = this.currentDirectory.singlyLinkedList.search(name);
+        if(searchName !== undefined) return this.currentDirectory.setUpdatedAt();
+
+        return this.currentDirectory.singlyLinkedList.add(new FileNode(name));
+
     }
     mkdir(dirName){
         return;
@@ -681,5 +686,6 @@ console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.print());
 // console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.remove("newFile1"));
 // console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.remove("dir1"));
 
-fileDirectorySystem.touch("file", "touchFile3")
+fileDirectorySystem.touch("touchFile3");
+fileDirectorySystem.touch("touchFile3");
 console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.print());
