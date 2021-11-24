@@ -183,6 +183,18 @@ class View{
     }
 }
 
+class SinglyLinkedList{
+    constructor(){
+        this.head = null;
+    }
+
+    print(){}
+    search(name){
+        //nameに一致するDirectoryNodeを返す
+    }
+    add(DirectoryNode){}
+    delete(DirectoryNode){}
+}
 class DirectoryNode{
     constructor(type, name){
         this.type = type;
@@ -208,27 +220,39 @@ class File extends DirectoryNode{
     setContent(content){}
     getContent(){}
 }
-class Directory extends DirectoryNode{}
+
+
+class Directory extends DirectoryNode{
+    constructor(type, name){
+        super(type, name);
+        this.singlyLinkedList = new SinglyLinkedList()
+    }
+}
 
 class FileDirectorySystem{
 
-    static supportCommand = ["touch", "mkdir", "ls", "cd", "pwd", "print", "setContent", "rm"];
+    constructor(root){
+        this.root = root;
+        this.currentDirectory = this.root;
+    }
 
-    static touch(type, name){
+    supportCommand = ["touch", "mkdir", "ls", "cd", "pwd", "print", "setContent", "rm"];
+
+    touch(type, name){
         // 指定した名前でfile or dirを作成する。
     }
-    static mkdir(dirName){}
-    static ls(){}
-    static cd(path){
+    mkdir(dirName){}
+    ls(){}
+    cd(path){
         // cd .. -> current dir から親dirへ移動
         // cd dirName -> 指定したdirへ移動
     }
-    static pwd(){
+    pwd(){
         //current dirの絶対pathを表示する
     }
-    static print(fileName){}
-    static setContent(content){}
-    static rm(name){}
+    print(fileName){}
+    setContent(content){}
+    rm(name){}
 
     // static commandLineParser(CLIInputString){
     //     //入力したコマンドを" "で分割し配列にする処理
