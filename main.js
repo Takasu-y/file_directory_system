@@ -188,43 +188,119 @@ class SinglyLinkedList{
         this.head = null;
     }
 
-    print(){}
+    print(){
+        let text = "";
+        let iterator = this.head;
+        while(iterator !== null){
+            text += iterator.getName() + " | ";
+            iterator = iterator.next;
+        }
+
+        return text;
+    }
     search(name){
         //nameに一致するDirectoryNodeを返す
+        let iterator = this.head;
+        while(iterator !== null){
+            if(iterator.name === name){
+                return iterator;
+            }
+            iterator = iterator.next;
+        }
+        console.log("No exist this file name you should check it");
+        return;
     }
-    add(DirectoryNode){}
-    delete(DirectoryNode){}
+    add(DirectoryNode){
+        if(this.head === null) return this.head = DirectoryNode;
+
+        let iterator = this.head;
+        while(iterator.next !== null){
+            iterator = iterator.next;
+        }
+
+        iterator.next = DirectoryNode;
+
+        return;
+    }
+    remove(name){
+        //headが削除したいノードの場合
+        if(this.head.name === name){
+            let tmp = this.head;
+            this.head = this.head.next;
+            return tmp.name;
+        }
+
+        let iterator = this.head;
+
+        //削除したいノードの次がnullの場合/nullじゃない場合
+        while(iterator.next !== null){
+            if(iterator.next.name === name){
+                let tmp = iterator.next;
+
+                if(iterator.next.next !== null){
+                    iterator.next = iterator.next.next;
+                }else{
+                    iterator.next = null;
+                }
+                return tmp.name;
+            }
+
+            iterator = iterator.next;
+        }
+        console.log("Could not delete. No exist this file name you should check it");
+        return;
+    }
 }
 class DirectoryNode{
     constructor(type, name){
         this.type = type;
         this.name = name;
         this.created = new Date();
+        this.parent = null;
         this.next = null;
     }
 
-    setType(type){}
-    getType(){}
-    setName(name){}
-    getName(){}
-    getCreatedAt(){}
-    setParent(DirectoryNode){}
-    getParent(){}
+    getType(){
+        return this.type;
+    }
+    setName(name){
+        //nameを変更する時に使用する
+        this.name = name;
+        return;
+    }
+    getName(){
+        return this.name;
+    }
+    getCreatedAt(){
+        return this.created;
+    }
+    setParent(currentDirectory){
+        //current directoryをparentにsetする
+        this.parent = currentDirectory;
+        return;
+    }
+    getParent(){
+        return this.parent;
+    }
 }
 
-class File extends DirectoryNode{
-    constructor(type, name){
-        super(type, name);
+class FileNode extends DirectoryNode{
+    constructor(name){
+        super("file", name);
         this.content = null
     }
-    setContent(content){}
-    getContent(){}
+    setContent(content){
+        this.content = content;
+        return;
+    }
+    getContent(){
+        return this.content;
+    }
 }
 
-
 class Directory extends DirectoryNode{
-    constructor(type, name){
-        super(type, name);
+    constructor(name){
+        super("directory", name);
         this.singlyLinkedList = new SinglyLinkedList()
     }
 }
@@ -237,22 +313,40 @@ class FileDirectorySystem{
     }
 
     supportCommand = ["touch", "mkdir", "ls", "cd", "pwd", "print", "setContent", "rm"];
+    fileType = ["directory", "file"];
 
     touch(type, name){
         // 指定した名前でfile or dirを作成する。
+        if(type === "directory"){
+            this.currentDirectory.singlyLinkedList.add(new Directory(name));
+        }else{
+            this.currentDirectory.singlyLinkedList.add(new FileNode(name));
+        }
+        return;
     }
-    mkdir(dirName){}
-    ls(){}
+    mkdir(dirName){
+        return;
+    }
+    ls(){
+        return;
+    }
     cd(path){
         // cd .. -> current dir から親dirへ移動
         // cd dirName -> 指定したdirへ移動
+        return;
     }
     pwd(){
         //current dirの絶対pathを表示する
     }
-    print(fileName){}
-    setContent(content){}
+    print(fileName){
+        //current directory内の指定されたfile nameのcontentを出力
+        return;
+    }
     rm(name){}
+    // setContent(content){
+    //     //仕様が理解できず。。。
+    // }
+
 
     // static commandLineParser(CLIInputString){
     //     //入力したコマンドを" "で分割し配列にする処理
@@ -545,3 +639,47 @@ class FileDirectorySystem{
 
 const history = new CommandHistory();
 Controller.initialize();
+
+
+
+/// TEST /////////////////////////////////////////////////
+
+const root = new Directory("root");
+//File directory systemのインスタンスを作成
+let fileDirectorySystem = new FileDirectorySystem(root);
+
+const file1 = new FileNode("newFile1");
+file1.setParent(fileDirectorySystem.currentDirectory);
+file1.setContent("set content to file1");
+
+const file2 = new FileNode("newFile2");
+file2.setParent(fileDirectorySystem.currentDirectory);
+
+const dir1 = new Directory("dir1");
+dir1.setParent(fileDirectorySystem.currentDirectory);
+
+
+fileDirectorySystem.currentDirectory.singlyLinkedList.add(file1);
+fileDirectorySystem.currentDirectory.singlyLinkedList.add(file2);
+fileDirectorySystem.currentDirectory.singlyLinkedList.add(dir1);
+
+fileDirectorySystem.currentDirectory = fileDirectorySystem.currentDirectory.singlyLinkedList.head.next.next;
+const dir2 = new Directory("dir2");
+dir2.setParent(fileDirectorySystem.currentDirectory);
+
+fileDirectorySystem.currentDirectory.singlyLinkedList.add(dir2);
+
+fileDirectorySystem.currentDirectory = fileDirectorySystem.root;
+
+let searchNode = fileDirectorySystem.currentDirectory.singlyLinkedList.search("newFile1");
+console.log(searchNode);
+
+console.log(fileDirectorySystem.root);
+console.log(fileDirectorySystem.currentDirectory);
+console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.print());
+// console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.remove("newFile2"));
+// console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.remove("newFile1"));
+// console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.remove("dir1"));
+
+fileDirectorySystem.touch("file", "touchFile3")
+console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.print());
