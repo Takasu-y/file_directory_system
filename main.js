@@ -207,7 +207,6 @@ class SinglyLinkedList{
             }
             iterator = iterator.next;
         }
-        console.log("No exist this file name you should check it");
         return;
     }
     add(DirectoryNode){
@@ -326,18 +325,53 @@ class FileDirectorySystem{
         let searchName = this.currentDirectory.singlyLinkedList.search(name);
         if(searchName !== undefined) return this.currentDirectory.setUpdatedAt();
 
-        return this.currentDirectory.singlyLinkedList.add(new FileNode(name));
+        let newFile = new FileNode(name);
+        newFile.setParent(this.currentDirectory);
+
+        return this.currentDirectory.singlyLinkedList.add(newFile);
 
     }
     mkdir(dirName){
-        return;
+        //directory作成
+        let newDirectory = new Directory(dirName);
+        newDirectory.setParent(this.currentDirectory);
+
+        return this.currentDirectory.singlyLinkedList.add(newDirectory);
     }
-    ls(){
-        return;
+    ls(name){
+        //引数なし -> current directoryの全てのファイルリストを出力
+        //targetがdirectory -> target directory直下のファイル全て
+        //targetがfileNode -> そのfileNodeのみを出力
+
+        if(name === "") return this.currentDirectory.singlyLinkedList.print();
+
+        //current directory内でnameと一致するnodeを検索
+        let searchNode = this.currentDirectory.singlyLinkedList.search(name);
+
+        //nameが見つからない場合
+        if(searchNode === undefined) return "No exist this faile";
+
+        if(searchNode.type === "directory"){
+            return searchNode.singlyLinkedList.print();
+        }else{
+            return searchNode.name;
+        }
     }
-    cd(path){
+    cd(dirName){
         // cd .. -> current dir から親dirへ移動
         // cd dirName -> 指定したdirへ移動
+
+        if(dirName === ".."){
+            this.currentDirectory = this.currentDirectory.parent;
+        }else{
+            //current directory内でnameと一致するnodeを検索
+            let searchNode = this.currentDirectory.singlyLinkedList.search(dirName);
+
+            //nameが見つからない場合
+            if(searchNode === undefined) return console.log("No exist this directory");
+
+            this.currentDirectory = searchNode;
+        }
         return;
     }
     pwd(){
@@ -653,39 +687,32 @@ const root = new Directory("root");
 //File directory systemのインスタンスを作成
 let fileDirectorySystem = new FileDirectorySystem(root);
 
-const file1 = new FileNode("newFile1");
-file1.setParent(fileDirectorySystem.currentDirectory);
-file1.setContent("set content to file1");
+fileDirectorySystem.mkdir("mkdirFile3");
+fileDirectorySystem.mkdir("dir1");
+fileDirectorySystem.touch("touchFile1");
+console.log(fileDirectorySystem.ls(""));
+console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.print());
 
-const file2 = new FileNode("newFile2");
-file2.setParent(fileDirectorySystem.currentDirectory);
-
-const dir1 = new Directory("dir1");
-dir1.setParent(fileDirectorySystem.currentDirectory);
-
-
-fileDirectorySystem.currentDirectory.singlyLinkedList.add(file1);
-fileDirectorySystem.currentDirectory.singlyLinkedList.add(file2);
-fileDirectorySystem.currentDirectory.singlyLinkedList.add(dir1);
-
-fileDirectorySystem.currentDirectory = fileDirectorySystem.currentDirectory.singlyLinkedList.head.next.next;
-const dir2 = new Directory("dir2");
-dir2.setParent(fileDirectorySystem.currentDirectory);
-
-fileDirectorySystem.currentDirectory.singlyLinkedList.add(dir2);
-
-fileDirectorySystem.currentDirectory = fileDirectorySystem.root;
-
-let searchNode = fileDirectorySystem.currentDirectory.singlyLinkedList.search("newFile1");
-console.log(searchNode);
-
-console.log(fileDirectorySystem.root);
+//dir１にcurrent dirを移動
+fileDirectorySystem.currentDirectory = fileDirectorySystem.root.singlyLinkedList.head.next;
 console.log(fileDirectorySystem.currentDirectory);
-console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.print());
-// console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.remove("newFile2"));
-// console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.remove("newFile1"));
-// console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.remove("dir1"));
 
-fileDirectorySystem.touch("touchFile3");
-fileDirectorySystem.touch("touchFile3");
-console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.print());
+fileDirectorySystem.mkdir("dir1-dir2");
+fileDirectorySystem.mkdir("hi");
+fileDirectorySystem.touch("dir1-touchfile");
+
+// console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.print());
+
+
+console.log(fileDirectorySystem.currentDirectory);
+fileDirectorySystem.cd("..");
+console.log(fileDirectorySystem.ls(""));
+console.log(fileDirectorySystem.currentDirectory);
+fileDirectorySystem.cd("dir1");
+console.log(fileDirectorySystem.currentDirectory);
+console.log(fileDirectorySystem.ls(""));
+fileDirectorySystem.cd("dir1-dir2");
+console.log(fileDirectorySystem.currentDirectory);
+console.log(fileDirectorySystem.ls(""));
+
+// console.log(fileDirectorySystem.root);
