@@ -73,7 +73,7 @@ class CommandHistory{
             iterator = iterator.next;
         }
 
-        console.log("command history is ..." + history);
+        // console.log("command history is ..." + history);
         return history;
     }
     printReverse(){
@@ -109,7 +109,14 @@ class Controller{
             View.appendEchoParagraph(config.CLIOutputDiv);
 
             //入力を配列に解析
-            // let parsedCLIArray = CCTools.commandLineParser(CLITextInput.value);
+            let parsedCLIArray = FDSystem.commandLineParser(CLITextInput.value);
+            let command = parsedCLIArray[0];
+            let argsArr = parsedCLIArray.slice(1);
+
+            let isValid = FDSystem.commandList.includes(command);
+
+            // FDSystem.funcCommand(command, argsArr);
+
 
             // let result = CCTools.parsedArrayValidator(parsedCLIArray);
 
@@ -125,7 +132,7 @@ class Controller{
             //     }
             // }
 
-            // View.appendResultParagraph(config.CLIOutputDiv, result["isValid"], result["message"]);
+            View.appendResultParagraph(config.CLIOutputDiv, isValid, FDSystem.funcCommand(command, argsArr));
 
             //コマンドを履歴に追加
             history.add(config.CLITextInput.value);
@@ -155,9 +162,10 @@ class View{
         //入力結果を親要素に追加
         parentDiv.innerHTML+=
             `<p class="m-0">
-                <span style='color:green'>student</span>
-                <span style='color:magenta'>@</span>
-                <span style='color:blue'>recursionist</span>
+                <span style='color:aqua'>student</span>
+                <span style='color:aquamarine'>@</span>
+                <span style='color:aqua'>recursionist</span>
+                <span style='color:gray'>${FDSystem.currentDirectory.name}</span>
                 : ${config.CLITextInput.value}
             </p>`;
 
@@ -168,11 +176,11 @@ class View{
         let promptName = "";
         let promptColor = "";
         if (isValid){
-            promptName = "CCTools";
-            promptColor = "turquoise";
+            promptName = "FDSystem";
+            promptColor = "lime";
         }
         else{
-            promptName = "CCToolsError";
+            promptName = "Error";
             promptColor = "red";
         }
         parentDiv.innerHTML+=
@@ -199,7 +207,7 @@ class SinglyLinkedList{
         return text;
     }
     search(name){
-        //nameに一致するDirectoryNodeを返す
+        //nameに一致するオブジェクトを返す
         let iterator = this.head;
         while(iterator !== null){
             if(iterator.name === name){
@@ -209,15 +217,15 @@ class SinglyLinkedList{
         }
         return;
     }
-    add(DirectoryNode){
-        if(this.head === null) return this.head = DirectoryNode;
+    add(Node){
+        if(this.head === null) return this.head = Node;
 
         let iterator = this.head;
         while(iterator.next !== null){
             iterator = iterator.next;
         }
 
-        iterator.next = DirectoryNode;
+        iterator.next = Node;
 
         return;
     }
@@ -246,11 +254,10 @@ class SinglyLinkedList{
 
             iterator = iterator.next;
         }
-        console.log("Could not delete. No exist this file name you should check it");
         return;
     }
 }
-class DirectoryNode{
+class BaseNode{
     constructor(type, name){
         this.type = type;
         this.name = name;
@@ -288,10 +295,10 @@ class DirectoryNode{
     }
 }
 
-class FileNode extends DirectoryNode{
+class FileNode extends BaseNode{
     constructor(name){
         super("file", name);
-        this.content = null
+        this.content = "NO DATA"
     }
     setContent(content){
         this.content = content;
@@ -302,7 +309,7 @@ class FileNode extends DirectoryNode{
     }
 }
 
-class Directory extends DirectoryNode{
+class DirectoryNode extends BaseNode{
     constructor(name){
         super("directory", name);
         this.singlyLinkedList = new SinglyLinkedList()
@@ -311,50 +318,81 @@ class Directory extends DirectoryNode{
 
 class FileDirectorySystem{
 
-    constructor(root){
-        this.root = root;
+    constructor(){
+        this.root = new DirectoryNode("root");
         this.currentDirectory = this.root;
     }
 
-    supportCommand = ["touch", "mkdir", "ls", "cd", "pwd", "print", "setContent", "rm"];
     fileType = ["directory", "file"];
+    commandList = ["touch", "mkdir", "ls", "cd", "pwd", "print", "setContent", "rm", "help"]
+
+    commandLineParser(CLIInputString){
+        //入力したコマンドを" "で分割し配列にする処理
+        let parsedStringInputArray = CLIInputString.trim().split(" ");
+        return parsedStringInputArray;
+    }
+
+    funcCommand(command, args){
+        // 引数の数で分岐
+        switch(command){
+            case 'touch': return this.touch(args[0]);
+            case 'mkdir': return this.mkdir(args[0]);
+            case 'ls': return this.ls(args[0]);
+            case 'cd': return this.cd(args[0]);
+            case 'pwd': return this.pwd();
+            case 'print': return this.print(args[0]);
+            case 'setContent': return this.setContent(args[0], args.slice(1).reduce((result, text) => result + " " + text));
+            case 'rm': return this.rm(args[0]);
+            case 'help': return this.help();
+            default: return "入力されたコマンドは存在しません";
+        }
+    }
 
     touch(name){
         // 指定した名前でfileを作成する。
         // file or directoryに同じ名前がある場合はnodeの日時を更新する
-        let searchName = this.currentDirectory.singlyLinkedList.search(name);
-        if(searchName !== undefined) return this.currentDirectory.setUpdatedAt();
+        let searchNode = this.currentDirectory.singlyLinkedList.search(name);
+        if(searchNode !== undefined){
+            this.currentDirectory.setUpdatedAt();
+            return `カレントディレクト内にファイル名 ${searchNode.name} と同一のディレクトリまたはファイルが存在します`
+        }
 
         let newFile = new FileNode(name);
         newFile.setParent(this.currentDirectory);
+        this.currentDirectory.singlyLinkedList.add(newFile);
 
-        return this.currentDirectory.singlyLinkedList.add(newFile);
+        return `ファイル名 ${name} の作成に成功しました`;
 
     }
     mkdir(dirName){
+        let searchNode = this.currentDirectory.singlyLinkedList.search(dirName);
+        if(searchNode !== undefined) return `カレントディレクト内にファイル名 ${searchNode.name} と同一のディレクトリまたはファイルが存在します`;
+
         //directory作成
-        let newDirectory = new Directory(dirName);
+        let newDirectory = new DirectoryNode(dirName);
         newDirectory.setParent(this.currentDirectory);
 
-        return this.currentDirectory.singlyLinkedList.add(newDirectory);
+        this.currentDirectory.singlyLinkedList.add(newDirectory);
+
+        return `フォルダ名 ${dirName} の作成に成功しました`;
     }
     ls(name){
         //引数なし -> current directoryの全てのファイルリストを出力
         //targetがdirectory -> target directory直下のファイル全て
         //targetがfileNode -> そのfileNodeのみを出力
 
-        if(name === "") return this.currentDirectory.singlyLinkedList.print();
+        if(name === undefined) return this.currentDirectory.singlyLinkedList.print();
 
         //current directory内でnameと一致するnodeを検索
         let searchNode = this.currentDirectory.singlyLinkedList.search(name);
 
         //nameが見つからない場合
-        if(searchNode === undefined) return "No exist this faile";
+        if(searchNode === undefined) return "対象のファイルが存在しません";
 
         if(searchNode.type === "directory"){
             return searchNode.singlyLinkedList.print();
         }else{
-            return searchNode.name;
+            return searchNode.getName();
         }
     }
     cd(dirName){
@@ -368,30 +406,57 @@ class FileDirectorySystem{
             let searchNode = this.currentDirectory.singlyLinkedList.search(dirName);
 
             //nameが見つからない場合
-            if(searchNode === undefined) return console.log("No exist this directory");
+            if(searchNode === undefined) return console.log("対象のフォルダが存在しません");
 
             this.currentDirectory = searchNode;
         }
-        return;
+        return `カレントディレクトを ${this.currentDirectory.name} へ変更しました`;
     }
     pwd(){
         //current dirの絶対pathを表示する
+        let iterator = this.currentDirectory;
+
+        let path = "/";
+        while(iterator !== null){
+            path = "/" + iterator.name + path;
+            iterator = iterator.parent;
+        }
+        return path;
     }
     print(fileName){
         //current directory内の指定されたfile nameのcontentを出力
-        return;
+        //current directory内でnameと一致するnodeを検索
+        let searchFile = this.currentDirectory.singlyLinkedList.search(fileName);
+
+        //nameが見つからない場合
+        if(searchFile === undefined) return "対象のファイルが存在しません";
+
+        return searchFile.getContent();
     }
-    rm(name){}
-    // setContent(content){
-    //     //仕様が理解できず。。。
-    // }
+    setContent(fileName, content){
+        //指定したfile nameのcontent内容を書き換える
+        //current directory内でnameと一致するnodeを検索
+        let searchFile = this.currentDirectory.singlyLinkedList.search(fileName);
 
+        //nameが見つからない場合
+        if(searchFile === undefined) return "対象のファイルが存在しません";
+        searchFile.setContent(content);
+        return `${fileName}の情報を変更しました。 content: ${content}`;
+    }
+    rm(name){
+        let searchFile = this.currentDirectory.singlyLinkedList.search(name);
 
-    // static commandLineParser(CLIInputString){
-    //     //入力したコマンドを" "で分割し配列にする処理
-    //     let parsedStringInputArray = CLIInputString.trim().split(" ");
-    //     return parsedStringInputArray;
-    // }
+        //nameが見つからない場合
+        if(searchFile === undefined) return "対象のファイルが存在しません";
+
+        //指定したnameをcurrent directoryから削除
+        this.currentDirectory.singlyLinkedList.remove(name)
+        return `${name} をカレントディレクトリから削除しました`;
+    }
+    help(){
+        return this.commandList.reduce((helpMsg, command) => helpMsg + " " + command);
+    }
+
 
     // static parsedArrayValidator(parsedStringInputArray){
     //     // すべてのコマンドに適用されるルールに照らし合わせて入力をチェックする
@@ -410,309 +475,24 @@ class FileDirectorySystem{
     // static universalValidator(parsedStringInputArray){
     //     let universalValidatorResponse = {'isValid': true, 'message': ''};
 
-    //     if(parsedStringInputArray[0] !== "CCTools"){
-    //         //１番目のキーワードが "CCTools"であること
-    //         universalValidatorResponse["isValid"] = false;
-    //         universalValidatorResponse["message"] = "only CCTools package supported by this app. input must start with 'CCTools'";
-
-    //     }else if(!CCTools.supportCommand.includes(parsedStringInputArray[1])){
-    //         //2番目のワードがsupport commandに含まれていること
-    //         universalValidatorResponse["isValid"] = false;
-    //         universalValidatorResponse["message"] = "Not supported this command by this app. input must choice [convert], [showAvailableLocales], [showDenominations]";
-    //     }
-
     //     return universalValidatorResponse;
     // }
 
     // static commandArgumentsValidator(commandArgsArray){
     //     let commandValidatorResponse = {'isValid': true, 'message': ''};
 
-    //     if(commandArgsArray[0] === "showAvailableLocales"){
-    //         //commandがshowAvailableLocalesの時は引数はなし
-    //         if(commandArgsArray.length !== 1){
-    //             commandValidatorResponse["isValid"] = false;
-    //             commandValidatorResponse["message"] = `command :${commandArgsArray[0]} is NOT need Argments`;
-    //         }
-    //     }else if(commandArgsArray[0] === "showDenominations"){
-    //         //commandがshowDenominationsの時
-    //         if(!Object.keys(CCTools.exchangeRates).includes(commandArgsArray[1])){
-    //             commandValidatorResponse["isValid"] = false;
-    //             commandValidatorResponse["message"] = `command :${commandArgsArray[0]} NOT supported Locale. you should check Locale list`;
-    //         }
-    //     }else if(commandArgsArray[0] === "convert"){
-    //         //convertの時
-    //         let convertArgs = commandArgsArray.slice(1);
-    //         let convertValidatorResponse = CCTools.convertValidator(convertArgs);
-
-    //         if(!convertValidatorResponse["isValid"]){
-    //             commandValidatorResponse["isValid"] = false;
-    //             commandValidatorResponse["message"] = convertValidatorResponse["message"];
-    //         }
-    //     }
-
     //     return commandValidatorResponse;
     // }
-    // static convertValidator(convertArgs){
-    //     //3語であること
-    //     //amountは数字であること
-    //     //sourceの通貨とdestinationの通貨はexchangeに含まれていること
-    //     let sourceDenomination = convertArgs[0];
-    //     let destinationDenomination = convertArgs[2];
-    //     let sourceAmount = Number(convertArgs[1]);
-    //     let supportDenominations = CCTools.getSupportDenominations();
-
-    //     let response = {
-    //         "isValid": true,
-    //         "message": `command :${convertArgs[0]} or ${convertArgs[2]} NOT supported Denominations. you should check Locale list`
-    //     }
-
-    //     if(convertArgs.length !== 3){
-    //         response["isValid"] = false;
-    //         response["message"] = "In case of convert Denominations, input must contain exactly 3 elements.[sourceDenomination] [sourceAmount] [destinationDenomination]"
-
-    //     }else if(typeof(sourceAmount) !== "number" || isNaN(sourceAmount)){
-    //         response["isValid"] = false;
-    //         response["message"] = "source Amount is not number. You should input number."
-
-    //     }else if(!supportDenominations.includes(sourceDenomination) || !supportDenominations.includes(destinationDenomination)){
-    //         response["isValid"] = false;
-    //         response["message"] = "NOT exist Denomination."
-    //     }
-
-    //     return response;
-    // }
-
-    static resultListMessage(keys){
-        let resultMessage = "";
-
-        for(let key of keys){
-            resultMessage += key + ", ";
-        }
-
-        return resultMessage;
-    }
 
 }
 
-// class CCTools{
-//     static exchangeRates = {
-//         "Japan": {
-//             "Yen": 1
-//         },
-//         "India": {
-//             "Rupee": 1.4442,
-//             "Paisa": 0.014442
-//         },
-//         "USA": {
-//             "Dollar": 106.10,
-//             "USCent": 1.0610
-//         },
-//         "Europe": {
-//             "Euro": 125.56,
-//             "EuroCent": 1.2556
-//         },
-//         "UAE": {
-//             "Dirham": 28.89,
-//             "Fils": 0.2889
-//         },
-//     }
 
-//     static supportCommand = ["convert", "showAvailableLocales", "showDenominations"]
-
-//     static commandLineParser(CLIInputString){
-//         //入力したコマンドを" "で分割し配列にする処理
-//         let parsedStringInputArray = CLIInputString.trim().split(" ");
-//         return parsedStringInputArray;
-//     }
-
-//     static parsedArrayValidator(parsedStringInputArray){
-//         // すべてのコマンドに適用されるルールに照らし合わせて入力をチェックする
-//         //universal validator
-//         let validatorResponse = CCTools.universalValidator(parsedStringInputArray);
-//         if(!validatorResponse["isValid"]) return validatorResponse;
-
-//         //command args validator
-//         let commandArgsArray = parsedStringInputArray.slice(1);
-//         validatorResponse = CCTools.commandArgumentsValidator(commandArgsArray);
-//         if(!validatorResponse["isValid"]) return validatorResponse;
-
-//         return validatorResponse;
-//     }
-
-//     static universalValidator(parsedStringInputArray){
-//         let universalValidatorResponse = {'isValid': true, 'message': ''};
-
-//         if(parsedStringInputArray[0] !== "CCTools"){
-//             //１番目のキーワードが "CCTools"であること
-//             universalValidatorResponse["isValid"] = false;
-//             universalValidatorResponse["message"] = "only CCTools package supported by this app. input must start with 'CCTools'";
-
-//         }else if(!CCTools.supportCommand.includes(parsedStringInputArray[1])){
-//             //2番目のワードがsupport commandに含まれていること
-//             universalValidatorResponse["isValid"] = false;
-//             universalValidatorResponse["message"] = "Not supported this command by this app. input must choice [convert], [showAvailableLocales], [showDenominations]";
-//         }
-
-//         return universalValidatorResponse;
-//     }
-
-//     static commandArgumentsValidator(commandArgsArray){
-//         let commandValidatorResponse = {'isValid': true, 'message': ''};
-
-//         if(commandArgsArray[0] === "showAvailableLocales"){
-//             //commandがshowAvailableLocalesの時は引数はなし
-//             if(commandArgsArray.length !== 1){
-//                 commandValidatorResponse["isValid"] = false;
-//                 commandValidatorResponse["message"] = `command :${commandArgsArray[0]} is NOT need Argments`;
-//             }
-//         }else if(commandArgsArray[0] === "showDenominations"){
-//             //commandがshowDenominationsの時
-//             if(!Object.keys(CCTools.exchangeRates).includes(commandArgsArray[1])){
-//                 commandValidatorResponse["isValid"] = false;
-//                 commandValidatorResponse["message"] = `command :${commandArgsArray[0]} NOT supported Locale. you should check Locale list`;
-//             }
-//         }else if(commandArgsArray[0] === "convert"){
-//             //convertの時
-//             let convertArgs = commandArgsArray.slice(1);
-//             let convertValidatorResponse = CCTools.convertValidator(convertArgs);
-
-//             if(!convertValidatorResponse["isValid"]){
-//                 commandValidatorResponse["isValid"] = false;
-//                 commandValidatorResponse["message"] = convertValidatorResponse["message"];
-//             }
-//         }
-
-//         return commandValidatorResponse;
-//     }
-//     static convertValidator(convertArgs){
-//         //3語であること
-//         //amountは数字であること
-//         //sourceの通貨とdestinationの通貨はexchangeに含まれていること
-//         let sourceDenomination = convertArgs[0];
-//         let destinationDenomination = convertArgs[2];
-//         let sourceAmount = Number(convertArgs[1]);
-//         let supportDenominations = CCTools.getSupportDenominations();
-
-//         let response = {
-//             "isValid": true,
-//             "message": `command :${convertArgs[0]} or ${convertArgs[2]} NOT supported Denominations. you should check Locale list`
-//         }
-
-//         if(convertArgs.length !== 3){
-//             response["isValid"] = false;
-//             response["message"] = "In case of convert Denominations, input must contain exactly 3 elements.[sourceDenomination] [sourceAmount] [destinationDenomination]"
-
-//         }else if(typeof(sourceAmount) !== "number" || isNaN(sourceAmount)){
-//             response["isValid"] = false;
-//             response["message"] = "source Amount is not number. You should input number."
-
-//         }else if(!supportDenominations.includes(sourceDenomination) || !supportDenominations.includes(destinationDenomination)){
-//             response["isValid"] = false;
-//             response["message"] = "NOT exist Denomination."
-//         }
-
-//         return response;
-//     }
-//     static getSupportDenominations(){
-//         let denominations = [];
-//         let locales = Object.keys(CCTools.exchangeRates);
-
-//         //要リファクタリング
-//         for(let locale of locales){
-//             for(let denomination of Object.keys(CCTools.exchangeRates[locale])){
-//                 denominations.push(denomination);
-//             }
-//         }
-
-//         return denominations;
-//     }
-
-//     static resultListMessage(keys){
-//         let resultMessage = "";
-
-//         for(let key of keys){
-//             resultMessage += key + ", ";
-//         }
-
-//         return resultMessage;
-//     }
-
-//     static showAvailableLocales(){
-//         //引数は受け取らず、変換するための利用可能なロケールのリストを表示。
-//         return CCTools.resultListMessage(Object.keys(CCTools.exchangeRates));
-//     }
-
-//     static showDenominations(locale){
-//         //引数：利用可能なlocale
-//         //そのロケールでサポートされているデノミテーション（通貨の単位）のリスト。
-//         return CCTools.resultListMessage(Object.keys(CCTools.exchangeRates[locale]));
-//     }
-
-//     static convert(sourceDenomination, sourceAmount, destinationDenomination){
-//         //引数:変換前の通貨の単位、通貨量、変換先の通貨の単位
-//         //通貨を変換し、入力と出力の値、通貨単位を表示します。sourceAmountは数値に変換される必要があります。
-//         let sourceRate = 0;
-//         let destinationRate = 0;
-
-//         let locales = Object.keys(CCTools.exchangeRates);
-
-//         for(let key of locales){
-//             let denominations = Object.keys(CCTools.exchangeRates[key]); //通過単位を配列で取得
-
-//             denominations.find(denomination => {
-//                 if(denomination === sourceDenomination){
-//                     //変換前のレート
-//                     sourceRate = CCTools.exchangeRates[key][denomination];
-//                 }
-//                 else if(denomination === destinationDenomination){
-//                     //変換先のレート
-//                     destinationRate = CCTools.exchangeRates[key][denomination];
-//                 }
-//             })
-//         }
-
-//         return Math.floor(sourceAmount * (sourceRate / destinationRate));
-//     }
-
-// }
 
 const history = new CommandHistory();
+//File directory systemのインスタンスを作成
+const FDSystem = new FileDirectorySystem();
 Controller.initialize();
 
 
 
 /// TEST /////////////////////////////////////////////////
-
-const root = new Directory("root");
-//File directory systemのインスタンスを作成
-let fileDirectorySystem = new FileDirectorySystem(root);
-
-fileDirectorySystem.mkdir("mkdirFile3");
-fileDirectorySystem.mkdir("dir1");
-fileDirectorySystem.touch("touchFile1");
-console.log(fileDirectorySystem.ls(""));
-console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.print());
-
-//dir１にcurrent dirを移動
-fileDirectorySystem.currentDirectory = fileDirectorySystem.root.singlyLinkedList.head.next;
-console.log(fileDirectorySystem.currentDirectory);
-
-fileDirectorySystem.mkdir("dir1-dir2");
-fileDirectorySystem.mkdir("hi");
-fileDirectorySystem.touch("dir1-touchfile");
-
-// console.log(fileDirectorySystem.currentDirectory.singlyLinkedList.print());
-
-
-console.log(fileDirectorySystem.currentDirectory);
-fileDirectorySystem.cd("..");
-console.log(fileDirectorySystem.ls(""));
-console.log(fileDirectorySystem.currentDirectory);
-fileDirectorySystem.cd("dir1");
-console.log(fileDirectorySystem.currentDirectory);
-console.log(fileDirectorySystem.ls(""));
-fileDirectorySystem.cd("dir1-dir2");
-console.log(fileDirectorySystem.currentDirectory);
-console.log(fileDirectorySystem.ls(""));
-
-// console.log(fileDirectorySystem.root);
