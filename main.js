@@ -128,12 +128,11 @@ class Controller{
                 args.push(message);
             }
 
-            /////////////////////////////////////////////////////
+
             let result = FDSystem.parsedArrayValidator(command, path, args);
             if(result["isValid"]){
                 result["message"] = FDSystem.funcCommand(command, args);
             }
-            /////////////////////////////////////////////////////
 
 
             View.appendResultParagraph(config.CLIOutputDiv, result["isValid"], result["message"]);
@@ -366,12 +365,6 @@ class FileDirectorySystem{
     commandArgumentsValidator(command, path, args){
         let commandValidatorResponse = {'isValid': true, 'message': ''};
 
-        console.log("command: " + command);
-        console.log(path);
-        console.log(args);
-
-
-
         //現在のディレクトリの参照を保存
         const currentDir = this.currentDirectory;
 
@@ -389,7 +382,7 @@ class FileDirectorySystem{
 
                 if(searchNode !== undefined){
                     this.currentDirectory = searchNode;
-                    console.log("カレントディレクトリを移動しました --> " + searchNode.name);
+
                 }else{
                     commandValidatorResponse["isValid"] = false;
                     commandValidatorResponse["message"] = "カレントディレクトリの変更に失敗しました"
@@ -486,7 +479,7 @@ class FileDirectorySystem{
         }
 
         //current dirを戻す
-        this.currentDirectory = currentDir;
+        // this.currentDirectory = currentDir;
 
         return commandValidatorResponse;
     }
@@ -565,9 +558,12 @@ class FileDirectorySystem{
     cd(dirName){
         // cd .. -> current dir から親dirへ移動
         // cd dirName -> 指定したdirへ移動
+        let searchNode = this.currentDirectory.singlyLinkedList.search(dirName);
 
         if(dirName === ".."){
             this.currentDirectory = this.currentDirectory.parent;
+        }else{
+            this.currentDirectory = searchNode;
         }
 
         return `カレントディレクトを ${this.currentDirectory.name} へ変更しました`;
@@ -622,23 +618,3 @@ const history = new CommandHistory();
 //File directory systemのインスタンスを作成
 const FDSystem = new FileDirectorySystem();
 Controller.initialize();
-
-
-
-/// TEST /////////////////////////////////////////////////
-// let input = "touch mkfile.txt";
-// let input = "ls ";
-// let input = "touch dir1/dir2/mkfile.txt";
-// let parser = input.split(" ");
-// let arg = parser[1];
-// let pathParser = parser[1].split("/");
-
-
-// let path = pathParser.slice(0, -1);
-// let nm = pathParser.slice(-1)[0];
-
-// console.log(parser);
-// console.log(pathParser);
-
-// console.log(path);
-// console.log(nm);
