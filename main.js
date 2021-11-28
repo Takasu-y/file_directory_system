@@ -111,28 +111,32 @@ class Controller{
             //入力を配列に解析
             let parsedCLIArray = FDSystem.commandLineParser(CLITextInput.value);
             let command = parsedCLIArray[0];
-            let argsArr = parsedCLIArray.slice(1);
 
-            let isValid = FDSystem.commandList.includes(command);
+            let path;
+            let name;
+            let args = [];
 
-            // FDSystem.funcCommand(command, argsArr);
+            if(parsedCLIArray.length > 1){
+                path = parsedCLIArray[1].split("/").slice(0,-1);
+                name = parsedCLIArray[1].split("/").slice(-1)[0];
+                args.push(name);
+            }
+
+            if(parsedCLIArray.length > 2){
+                let arr = parsedCLIArray.slice(2);
+                let message = arr.reduce((result, text) => result + " " + text);
+                args.push(message);
+            }
+
+            /////////////////////////////////////////////////////
+            let result = FDSystem.parsedArrayValidator(command, path, args);
+            if(result["isValid"]){
+                result["message"] = FDSystem.funcCommand(command, args);
+            }
+            /////////////////////////////////////////////////////
 
 
-            // let result = CCTools.parsedArrayValidator(parsedCLIArray);
-
-            // if(result["isValid"]){
-            //     if(parsedCLIArray[1] === "showDenominations"){
-            //         result["message"] = CCTools.showDenominations(parsedCLIArray[2]);
-
-            //     }else if(parsedCLIArray[1] === "showAvailableLocales"){
-            //         result["message"] = CCTools.showAvailableLocales();
-
-            //     }else if(parsedCLIArray[1] === "convert"){
-            //         result["message"] = CCTools.convert(parsedCLIArray[2], Number(parsedCLIArray[3]), parsedCLIArray[4]);
-            //     }
-            // }
-
-            View.appendResultParagraph(config.CLIOutputDiv, isValid, FDSystem.funcCommand(command, argsArr));
+            View.appendResultParagraph(config.CLIOutputDiv, result["isValid"], result["message"]);
 
             //コマンドを履歴に追加
             history.add(config.CLITextInput.value);
@@ -321,6 +325,7 @@ class FileDirectorySystem{
     constructor(){
         this.root = new DirectoryNode("root");
         this.currentDirectory = this.root;
+        this.directoryList = [];
     }
 
     fileType = ["directory", "file"];
@@ -332,8 +337,161 @@ class FileDirectorySystem{
         return parsedStringInputArray;
     }
 
+    // parsedArrayValidator(parsedStringInputArray){
+    parsedArrayValidator(command, pass, args){
+        // すべてのコマンドに適用されるルールに照らし合わせて入力をチェックする
+        //universal validator
+        let validatorResponse =  FDSystem.universalValidator(command);
+        if(!validatorResponse["isValid"]) return validatorResponse;
+
+        //command args validator
+        validatorResponse = FDSystem.commandArgumentsValidator(command, pass, args);
+        if(!validatorResponse["isValid"]) return validatorResponse;
+
+        return validatorResponse;
+    }
+
+    universalValidator(command){
+        //一番目のキーワードがコマンドリストにあること
+        let universalValidatorResponse = {'isValid': true, 'message': ''};
+
+        if(!this.commandList.includes(command)){
+            universalValidatorResponse["isValid"] = false;
+            universalValidatorResponse["message"] = "入力されたコマンドはサポートされていません";
+        }
+
+        return universalValidatorResponse;
+    }
+
+    commandArgumentsValidator(command, path, args){
+        let commandValidatorResponse = {'isValid': true, 'message': ''};
+
+        console.log("command: " + command);
+        console.log(path);
+        console.log(args);
+
+
+
+        //現在のディレクトリの参照を保存
+        const currentDir = this.currentDirectory;
+
+        //current directoryをターゲットのディレクトリに移動する
+        if(path !== undefined){
+            if(path[0] === ""){
+                //絶対パス
+                path = path.slice(1);
+                this.currentDirectory = this.root;
+            }
+
+            //this.currentをpathを元に進めていく
+            path.forEach(element => {
+                let searchNode = this.currentDirectory.singlyLinkedList.search(element);
+
+                if(searchNode !== undefined){
+                    this.currentDirectory = searchNode;
+                    console.log("カレントディレクトリを移動しました --> " + searchNode.name);
+                }else{
+                    commandValidatorResponse["isValid"] = false;
+                    commandValidatorResponse["message"] = "カレントディレクトリの変更に失敗しました"
+                }
+            });
+        }
+
+        let name = args[0];
+
+        //current directory内で対象のnameを検索
+        let searchNode = this.currentDirectory.singlyLinkedList.search(name);
+
+        switch(command){
+            case 'touch':
+                if(args.length !== 1){
+                    commandValidatorResponse["isValid"] = false;
+                    commandValidatorResponse["message"] = "touchコマンドは引数を1つにしてください";
+
+                }else if(searchNode !== undefined){
+                    this.currentDirectory.setUpdatedAt();
+                    commandValidatorResponse["isValid"] = false;
+                    commandValidatorResponse["message"] = `カレントディレクト内にファイル名 ${searchNode.name} と同一のディレクトリまたはファイルが存在します`;
+                }
+                break;
+
+            case 'mkdir':
+                if(args.length !== 1){
+                    commandValidatorResponse["isValid"] = false;
+                    commandValidatorResponse["message"] = "mkdirコマンドは引数を1つにしてください";
+
+                }else if(this.directoryList.includes(name)){
+                    commandValidatorResponse["isValid"] = false;
+                    commandValidatorResponse["message"] = "filePathはファイルシステムに既に存在するノードを参照してはいけません。";
+                }
+                break;
+
+            case 'ls':
+                if(name !== undefined && searchNode === undefined){
+                    commandValidatorResponse["isValid"] = false;
+                    commandValidatorResponse["message"] = "filePathはファイルシステム内に存在するノードを指す必要があります。";
+                }
+                break;
+
+            case 'cd':
+                if(args.length !== 1){
+                    commandValidatorResponse["isValid"] = false;
+                    commandValidatorResponse["message"] = "cdコマンドは引数を1つにしてください";
+
+                }else if(!this.directoryList.includes(name) && name !== ".."){
+                    commandValidatorResponse["isValid"] = false;
+                    commandValidatorResponse["message"] = "filePathはファイルシステム内に存在するノードを指す必要があります";
+
+                }else if(searchNode !== undefined && searchNode.type === "file"){
+                    commandValidatorResponse["isValid"] = false;
+                    commandValidatorResponse["message"] = "filePathは'dir'型のノードを参照する必要があります。";
+                }
+                break;
+
+            case 'pwd':
+                if(args.length !== 0){
+                    commandValidatorResponse["isValid"] = false;
+                    commandValidatorResponse["message"] = "pwdコマンドは引数を入力しないでください";
+                }
+                break;
+
+            case 'print':
+                if(searchNode === undefined){
+                    commandValidatorResponse["isValid"] = false;
+                    commandValidatorResponse["message"] = "filePathはファイルシステム内に存在するノードを指す必要があります。";
+
+                }else if(searchNode.type !== "file"){
+                    commandValidatorResponse["isValid"] = false;
+                    commandValidatorResponse["message"] = "filePathは'file'型のノードを参照する必要があります。";
+                }
+                break;
+
+            case 'setContent':
+                if(searchNode === undefined){
+                    commandValidatorResponse["isValid"] = false;
+                    commandValidatorResponse["message"] = "filePathはファイルシステム内に存在するノードを指す必要があります。";
+
+                }else if(searchNode.type !== "file"){
+                    commandValidatorResponse["isValid"] = false;
+                    commandValidatorResponse["message"] = "filePathは'file'型のノードを参照する必要があります。";
+                }
+                break;
+
+            case 'rm':
+                if(searchNode === undefined){
+                    commandValidatorResponse["isValid"] = false;
+                    commandValidatorResponse["message"] = "filePathはファイルシステム内に存在するノードを指す必要があります。";
+                }
+                break;
+        }
+
+        //current dirを戻す
+        this.currentDirectory = currentDir;
+
+        return commandValidatorResponse;
+    }
+
     funcCommand(command, args){
-        // 引数の数で分岐
         switch(command){
             case 'touch': return this.touch(args[0]);
             case 'mkdir': return this.mkdir(args[0]);
@@ -341,38 +499,47 @@ class FileDirectorySystem{
             case 'cd': return this.cd(args[0]);
             case 'pwd': return this.pwd();
             case 'print': return this.print(args[0]);
-            case 'setContent': return this.setContent(args[0], args.slice(1).reduce((result, text) => result + " " + text));
+            case 'setContent': return this.setContent(args[0], args[1]);
             case 'rm': return this.rm(args[0]);
             case 'help': return this.help();
-            default: return "入力されたコマンドは存在しません";
         }
     }
+    runCommand(path, command, args){
+        /*
+            各コマンドはcurrent directoryに対して処理を行う
+            処理する前にcurrent dirの参照を変数に保存しておく
+            current dirをtarget dirまで移動
+            コマンド実行
+            curret dirを初期の参照に戻す
+        */
 
+        const currentDir = this.currentDirectory;
+
+        //current directoryからtarget directoryまで移動
+        this.currentDirectory = this.change(path);
+        let message =this.funcCommand(command, args);
+
+        //current directoryを元に戻す
+        this.currentDirectory = currentDir;
+
+        return message;
+    }
     touch(name){
         // 指定した名前でfileを作成する。
         // file or directoryに同じ名前がある場合はnodeの日時を更新する
-        let searchNode = this.currentDirectory.singlyLinkedList.search(name);
-        if(searchNode !== undefined){
-            this.currentDirectory.setUpdatedAt();
-            return `カレントディレクト内にファイル名 ${searchNode.name} と同一のディレクトリまたはファイルが存在します`
-        }
-
         let newFile = new FileNode(name);
         newFile.setParent(this.currentDirectory);
         this.currentDirectory.singlyLinkedList.add(newFile);
 
         return `ファイル名 ${name} の作成に成功しました`;
-
     }
     mkdir(dirName){
-        let searchNode = this.currentDirectory.singlyLinkedList.search(dirName);
-        if(searchNode !== undefined) return `カレントディレクト内にファイル名 ${searchNode.name} と同一のディレクトリまたはファイルが存在します`;
-
         //directory作成
         let newDirectory = new DirectoryNode(dirName);
         newDirectory.setParent(this.currentDirectory);
 
         this.currentDirectory.singlyLinkedList.add(newDirectory);
+        this.directoryList.push(dirName);
 
         return `フォルダ名 ${dirName} の作成に成功しました`;
     }
@@ -401,15 +568,8 @@ class FileDirectorySystem{
 
         if(dirName === ".."){
             this.currentDirectory = this.currentDirectory.parent;
-        }else{
-            //current directory内でnameと一致するnodeを検索
-            let searchNode = this.currentDirectory.singlyLinkedList.search(dirName);
-
-            //nameが見つからない場合
-            if(searchNode === undefined) return console.log("対象のフォルダが存在しません");
-
-            this.currentDirectory = searchNode;
         }
+
         return `カレントディレクトを ${this.currentDirectory.name} へ変更しました`;
     }
     pwd(){
@@ -436,54 +596,24 @@ class FileDirectorySystem{
     setContent(fileName, content){
         //指定したfile nameのcontent内容を書き換える
         //current directory内でnameと一致するnodeを検索
-        let searchFile = this.currentDirectory.singlyLinkedList.search(fileName);
-
-        //nameが見つからない場合
-        if(searchFile === undefined) return "対象のファイルが存在しません";
-        searchFile.setContent(content);
+        this.currentDirectory.singlyLinkedList.search(fileName).setContent(content);
         return `${fileName}の情報を変更しました。 content: ${content}`;
     }
     rm(name){
         let searchFile = this.currentDirectory.singlyLinkedList.search(name);
 
-        //nameが見つからない場合
-        if(searchFile === undefined) return "対象のファイルが存在しません";
+        //directoryの場合
+        if(searchFile.type === "directory"){
+            this.directoryList = this.directoryList.filter(name => name !== searchFile.name);
+        }
 
         //指定したnameをcurrent directoryから削除
-        this.currentDirectory.singlyLinkedList.remove(name)
+        this.currentDirectory.singlyLinkedList.remove(name);
         return `${name} をカレントディレクトリから削除しました`;
     }
     help(){
         return this.commandList.reduce((helpMsg, command) => helpMsg + " " + command);
     }
-
-
-    // static parsedArrayValidator(parsedStringInputArray){
-    //     // すべてのコマンドに適用されるルールに照らし合わせて入力をチェックする
-    //     //universal validator
-    //     let validatorResponse = CCTools.universalValidator(parsedStringInputArray);
-    //     if(!validatorResponse["isValid"]) return validatorResponse;
-
-    //     //command args validator
-    //     let commandArgsArray = parsedStringInputArray.slice(1);
-    //     validatorResponse = CCTools.commandArgumentsValidator(commandArgsArray);
-    //     if(!validatorResponse["isValid"]) return validatorResponse;
-
-    //     return validatorResponse;
-    // }
-
-    // static universalValidator(parsedStringInputArray){
-    //     let universalValidatorResponse = {'isValid': true, 'message': ''};
-
-    //     return universalValidatorResponse;
-    // }
-
-    // static commandArgumentsValidator(commandArgsArray){
-    //     let commandValidatorResponse = {'isValid': true, 'message': ''};
-
-    //     return commandValidatorResponse;
-    // }
-
 }
 
 
@@ -496,3 +626,19 @@ Controller.initialize();
 
 
 /// TEST /////////////////////////////////////////////////
+// let input = "touch mkfile.txt";
+// let input = "ls ";
+// let input = "touch dir1/dir2/mkfile.txt";
+// let parser = input.split(" ");
+// let arg = parser[1];
+// let pathParser = parser[1].split("/");
+
+
+// let path = pathParser.slice(0, -1);
+// let nm = pathParser.slice(-1)[0];
+
+// console.log(parser);
+// console.log(pathParser);
+
+// console.log(path);
+// console.log(nm);
